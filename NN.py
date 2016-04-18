@@ -2,6 +2,7 @@
 
 import tensorflow as tf
 import numpy as np
+import time
 DATA_SOURCE = './data/matrixEnron6.txt'
 
 
@@ -107,5 +108,5 @@ with tf.Session() as sess:
     for i in range(iterations):
         for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
-            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}".format(i, start//batch, (i*(len(trX)//batch)+(start//batch)) ))
+            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(i, start//batch, i*(len(trX)//batch)+(start//batch), time.time() ))
         print("Test>> Iteration: {:d}\tAccuracy: {:.7f}".format(i, np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
