@@ -70,7 +70,7 @@ print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
 iterations = 100
 batch = 128
 input_layer = len(trX[0])
-hidden_layer = 625
+hidden_layer = int(input_layer * 1.5)
 output_layer = len(trY[0])
 learning_rate = 0.05
 
@@ -83,7 +83,7 @@ def init_weights(shape):
 
 
 def model(X, w_h, w_o):
-    h = tf.nn.sigmoid(tf.matmul(X, w_h)) # this is a basic mlp, think 2 stacked logistic regressions
+    h = tf.nn.tanh(tf.matmul(X, w_h)) # this is a basic mlp, think 2 stacked logistic regressions
     return tf.matmul(h, w_o) # note that we dont take the softmax at the end because our cost fn does that for us
 
 X = tf.placeholder("float", [None, input_layer])
@@ -104,6 +104,7 @@ with tf.Session() as sess:
 
     # you need to initialize all variables
     tf.initialize_all_variables().run()
+    print("Guess>> Accuracy: {:.7f}".format(np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
 
     for i in range(iterations):
         for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
