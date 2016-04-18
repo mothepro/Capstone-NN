@@ -100,12 +100,12 @@ predict_op = tf.argmax(py_x, 1)
 
 # Launch the graph in a session
 with tf.Session() as sess:
-    #summary_writer = tf.train.SummaryWriter('./logs.3', sess.graph)
-
-    # you need to initialize all variables
     tf.initialize_all_variables().run()
+
+    # Test with the untrained NN
     print("Guess>> Accuracy: {:.7f}".format(np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
 
+    # Lets train over this set a few times
     for i in range(iterations):
         for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
