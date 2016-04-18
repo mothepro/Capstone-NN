@@ -1,8 +1,66 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import tensorflow as tf
 import numpy as np
-import inp
+DATA_SOURCE = './data/matrixEnron6.txt'
+
+
+#read input from features matrix and store in matrix data structures for NN processing
+from random import shuffle
+
+class EmailSet(object):
+    def __init__(self,matrix_dir):
+        self.matrix = self.read_matrix(matrix_dir)
+        self.labels = self.create_label_matrix()
+        self.matrix = self.remove_label_matrix(self.matrix)
+
+    def read_matrix(self,matrix_dir):
+        matrix = []
+
+        with open(matrix_dir,"r") as matrix_file:
+            i = 0
+            for line in matrix_file:
+                matrix.append([])
+
+                line = line.strip().split(' ')
+
+                #this could be taken out by modifying FEATURES project output format for labels
+                line[ -1 ] = 1 if line[-1] == 'H' else 0
+                line.append(1 if line[-1] == 0 else 0)
+
+                matrix[i] = [int(entry) for entry in line if entry != ' ']
+
+                i += 1
+                #debug
+                #if i % 100 == 0:
+                #    print("Reading: {:d}".format(i))
+                #if i > 1600:
+                #    break
+        shuffle(matrix)
+        return matrix
+
+    def create_label_matrix(self):
+        matrix_label = [[entry[-2], entry[-1]] for entry in self.matrix]
+        return matrix_label
+
+    def remove_label_matrix(self,matrix):
+        matrix = [entry[:-2] for entry in matrix]
+        return matrix
+
+##############
+# Get Inputs #
+##############
+
+print("Reading Training data from '{:s}'.".format(DATA_SOURCE))
+
+in_data = EmailSet(DATA_SOURCE);
+size = int(len(in_data.matrix) * .8)
+trX = in_data.matrix[:size]
+trY = in_data.labels[:size]
+teX = in_data.matrix[size:]
+teY = in_data.labels[size:]
+
+print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
 
 ####################
 # Hyper Parameters #
@@ -10,12 +68,14 @@ import inp
 
 iterations = 100
 batch = 128
-input_layer = 784
+input_layer = len(trX[0])
 hidden_layer = 625
-output_layer = 10
+output_layer = len(trY[0])
 learning_rate = 0.05
 
-###################
+########################
+# Build Neural Network #
+########################
 
 def init_weights(shape):
     return tf.Variable(tf.random_normal(shape, stddev=0.01))
@@ -24,10 +84,6 @@ def init_weights(shape):
 def model(X, w_h, w_o):
     h = tf.nn.sigmoid(tf.matmul(X, w_h)) # this is a basic mlp, think 2 stacked logistic regressions
     return tf.matmul(h, w_o) # note that we dont take the softmax at the end because our cost fn does that for us
-
-
-mnist = inp("TensorFlow-Tutorials/MNIST_data/")
-trX, trY, teX, teY = mnist.train.images, mnist.train.labels, mnist.test.images, mnist.test.labels
 
 X = tf.placeholder("float", [None, input_layer])
 Y = tf.placeholder("float", [None, output_layer])
@@ -49,7 +105,7 @@ with tf.Session() as sess:
     tf.initialize_all_variables().run()
 
     for i in range(iterations):
-        for start, end in zip(range(0, len(trX), batch), range(128, len(trX), batch)):
+        for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
             print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}".format(i, start//batch, (i*(len(trX)//batch)+(start//batch)) ))
-        print("Test>> Iteration: {:d}\tAccuracy: {:.7f}".format(i, np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY})) ))
+        print("Test>> Iteration: {:d}\tAccuracy: {:.7f}".format(i, np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
