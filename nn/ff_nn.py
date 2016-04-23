@@ -4,6 +4,8 @@ import tensorflow as tf
 import numpy as np
 import time
 from random import shuffle
+import sys, getopt
+
 DATA_SOURCE = './data/matrixEnron6.txt'
 
 
@@ -154,26 +156,45 @@ with tf.Session() as sess:
     # Lets train over this set a few times
     for i in range(iterations):
         accuracy = []
+        f1score = []
 
         for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
-            step = start//batch
+            step = start // batch
 
             # Calculate accuracy and save it to accuracy list
+            predictionList = sess.run(predict_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
             accuracy.append(np.mean(
-                np.argmax(trY[start:end], axis=1) ==
-                sess.run(predict_op, feed_dict={
-                    X: trX[start:end],
-                    Y: trY[start:end]
-                })
+                np.argmax(trY[start:end], axis=1) == predictionList
             ))
 
+            baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
+            for i in range(start, end):
+                if trY[i] == 1:  # email is legitimate
+                    if predictionList[i - start] == 1:  # predicted legitimate as legitimate    (true positive)
+                        baseScore[0] += 1
+                    elif predictionList[i - start] == 0:  # predicted legitimate as spam          (false negative)
+                        baseScore[3] += 1
+                else:  # email is spam
+                    if predictionList[i - start] == 1:  # predicted spam as legitimate          (false positive)
+                        baseScore[2] += 1
+                    else:  # predicted spam as spam                (true negative)
+                        baseScore[1] += 1
+
+            precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
+            recall = baseScore[0] / (baseScore[0] + baseScore[3])
+            fscore = 2 * ((precision * recall) / (precision + recall))
+
+            f1score.append(fscore)
+
             # Attempt this batch
-            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}".format(
+            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
                 i,
-                step,
-                i*(len(trX)//batch)+step,
+                step, #batch
+                i*(len(trX)//batch)+step, #step
                 accuracy[step],
-                np.average(accuracy)
+                np.average(accuracy),
+                f1score[step],
+                np.average(f1score)
             ))
 
             # Then train on it
@@ -183,6 +204,6 @@ with tf.Session() as sess:
             print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
                 i,
                 step,
-                i*(len(trX)//batch)+step,
+                i * (len(trX) // batch) + step,
                 time.time()
             ))
