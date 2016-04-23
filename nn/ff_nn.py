@@ -3,6 +3,7 @@
 import tensorflow as tf
 import numpy as np
 import time
+from random import shuffle
 DATA_SOURCE = './data/matrixEnron6.txt'
 
 
@@ -17,22 +18,10 @@ DATA_SOURCE = './data/matrixEnron6.txt'
 #
 ###################
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"d:i:h:b:",["data-set=","input-neurons=","hidden-neurons=","batch-size="])
-except getopt.GetoptError:
-    sys.exit(2)
-
-for opt, arg in opts:
-    if opt in ("-i", "--input-neurons"):
-        input_layer = int(arg)
-    elif opt in ("-d", "--data-set"):
-        dataSet = int(arg)
-    elif opt in ("-h", "--hidden-neurons"):
-        hidden_layer = int(arg)
-    elif opt in ("-b", "--batch-size"):
-
-#read input from features matrix and store in matrix data structures for NN processing
-from random import shuffle
+########
+# read input from features matrix
+# store in matrix data structures for NN processing
+########
 
 class EmailSet(object):
     def __init__(self,matrix_dir):
@@ -67,13 +56,32 @@ class EmailSet(object):
         matrix = [entry[:-2] for entry in matrix]
         return matrix
 
+# Read Command line args
+# Overwrites the hyper parameters
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:], "d:i:h:b:",
+                               ["data-set=", "input-neurons=", "hidden-neurons=", "batch-size="])
+except getopt.GetoptError:
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ("-i", "--input-neurons"):
+        input_layer = int(arg)
+    elif opt in ("-d", "--data-set"):
+        dataSet = int(arg)
+    elif opt in ("-h", "--hidden-neurons"):
+        hidden_layer = int(arg)
+    elif opt in ("-b", "--batch-size"):
+        batch = int(arg)
+
 ##############
 # Get Inputs #
 ##############
 
 print("Reading Training data from '{:s}'.".format(DATA_SOURCE))
 
-in_data = EmailSet(DATA_SOURCE);
+in_data = EmailSet(DATA_SOURCE)
 size = int(len(in_data.matrix) * .8)
 trX = in_data.matrix[:size]
 trY = in_data.labels[:size]
@@ -101,21 +109,43 @@ def init_weights(shape):
     return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
 
-def model(X, w_h, w_o):
-    h = tf.nn.tanh(tf.matmul(X, w_h)) # this is a basic mlp, think 2 stacked logistic regressions
-    return tf.matmul(h, w_o) # note that we dont take the softmax at the end because our cost fn does that for us
+def model(X, w_h, w_o, b_h, b_o):
+    h = tf.nn.tanh(
+        tf.add(
+            tf.matmul(X, w_h),
+            b_h
+        )
+    )
 
+    # we dont take the softmax at the end because our cost fn does that for us
+    predict = tf.add(
+        tf.matmul(h, w_o),
+        b_o
+    )
+
+    return predict
+
+# I/O
 X = tf.placeholder("float", [None, input_layer])
 Y = tf.placeholder("float", [None, output_layer])
 
-w_h = init_weights([input_layer, hidden_layer]) # create symbolic variables
+# Weights
+w_h = init_weights([input_layer, hidden_layer])
 w_o = init_weights([hidden_layer, output_layer])
 
-py_x = model(X, w_h, w_o)
+# Biases
+b_h = init_weights([1, hidden_layer])
+b_o = init_weights([1, output_layer])
 
-cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(py_x, Y)) # compute costs
-train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost) # construct an optimizer
-predict_op = tf.argmax(py_x, 1)
+# Prediction
+py_x = model(X, w_h, w_o, b_h, b_o)
+predict_op = tf.argmax(py_x, 1) # Spam or Ham
+
+# compute costs
+cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(py_x, Y))
+
+# construct an optimizer (Back Prop)
+train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
 
 # Launch the graph in a session
 with tf.Session() as sess:
