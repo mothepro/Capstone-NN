@@ -31,12 +31,6 @@ class EmailSet(object):
 
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
 
-                i += 1
-                #debug
-                #if i % 100 == 0:
-                #    print("Reading: {:d}".format(i))
-                #if i > 1600:
-                #    break
         shuffle(matrix)
         return matrix
 
