@@ -6,6 +6,31 @@ import time
 DATA_SOURCE = './data/matrixEnron6.txt'
 
 
+###################
+# Of Machine & Men
+#
+# Maurice Prosper
+# kace echo
+# Cole Troutman
+#
+# CS 3359
+#
+###################
+
+try:
+    opts, args = getopt.getopt(sys.argv[1:],"d:i:h:b:",["data-set=","input-neurons=","hidden-neurons=","batch-size="])
+except getopt.GetoptError:
+    sys.exit(2)
+
+for opt, arg in opts:
+    if opt in ("-i", "--input-neurons"):
+        input_layer = int(arg)
+    elif opt in ("-d", "--data-set"):
+        dataSet = int(arg)
+    elif opt in ("-h", "--hidden-neurons"):
+        hidden_layer = int(arg)
+    elif opt in ("-b", "--batch-size"):
+
 #read input from features matrix and store in matrix data structures for NN processing
 from random import shuffle
 
@@ -96,12 +121,38 @@ predict_op = tf.argmax(py_x, 1)
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
 
-    # Test with the untrained NN
-    print("Guess>> Accuracy: {:.7f}".format(np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
-
     # Lets train over this set a few times
     for i in range(iterations):
+        accuracy = []
+
         for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
+            step = start//batch
+
+            # Calculate accuracy and save it to accuracy list
+            accuracy.append(np.mean(
+                np.argmax(trY[start:end], axis=1) ==
+                sess.run(predict_op, feed_dict={
+                    X: trX[start:end],
+                    Y: trY[start:end]
+                })
+            ))
+
+            # Attempt this batch
+            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}".format(
+                i,
+                step,
+                i*(len(trX)//batch)+step,
+                accuracy[step],
+                np.average(accuracy)
+            ))
+
+            # Then train on it
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
-            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(i, start//batch, i*(len(trX)//batch)+(start//batch), time.time() ))
-        print("Test>> Iteration: {:d}\tAccuracy: {:.7f}".format(i, np.mean(np.argmax(teY, axis=1) == sess.run(predict_op, feed_dict={X: teX, Y: teY}))))
+
+            # Log the train duration
+            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
+                i,
+                step,
+                i*(len(trX)//batch)+step,
+                time.time()
+            ))
