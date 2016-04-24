@@ -29,6 +29,7 @@ parser.add_argument('-b', '--batch-size', type=int, default=100)
 parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
 parser.add_argument('-z', '--iterations', type=int, default=100)
 parser.add_argument('-t', '--train', type=bool, default=True)
+parser.add_argument('-x', '--tolerance', type=float, default=0)
 parser.add_argument('-s', '--save-point')
 # parser.add_argument('--tolerance', type=float, default=0.001)
 args = parser.parse_args()
@@ -118,6 +119,10 @@ train_op = tf.train.GradientDescentOptimizer(args.learning_rate).minimize(cost)
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
     step = 0
+    cost_values = [0]
+
+    accuracy = []
+    f1Scores = []
 
     saver = None
     if args.save_point:
@@ -125,8 +130,6 @@ with tf.Session() as sess:
 
     # Lets train over this set a few times
     for itera in range(args.iterations):
-        accuracy = []
-        f1Scores = []
 
         for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
             batchNum = start // args.batch_size
@@ -175,16 +178,25 @@ with tf.Session() as sess:
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
 
             # Log the train duration
-            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
-                itera,
-                batchNum,
-                step,
-                time.time()
-            ))
+            # print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
+            #     itera,
+            #     batchNum,
+            #     step,
+            #     time.time()
+            # ))
 
             step += 1
 
         if saver: # Save the weights
             saver.save(sess, args.save_point, global_step=itera)
+
+        if args.tolerance:
+            # Add training cost to list
+            cost_values.append(sess.run(cost, feed_dict={X: trX, Y: trY}))
+            diff = abs(cost_values[-1] - cost_values[-2])
+
+            if diff < args.tolerance: # Check if we should quit
+                print("Cost Converging with difference of {:.7f}".format(diff))
+                break
 
     sess.close()
