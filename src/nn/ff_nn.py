@@ -185,6 +185,6 @@ with tf.Session() as sess:
             step += 1
 
         if saver: # Save the weights
-            saver.save(sess, args.save_point + __file__, global_step=itera)
+            saver.save(sess, args.save_point, global_step=itera)
 
     sess.close()
