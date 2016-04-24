@@ -63,6 +63,10 @@ class EmailSet(object):
                     line[ -1 ] = 1 if line[-1] == 'S' else 0
                     line.append(1 if line[-1] == 0 else 0)
 
+                # Remove last if it is H or S
+                if line[ -1 ] == 'H' or line[ -1 ] == 'S':
+                    line = line[:-1]
+
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
                 i += 1
 
