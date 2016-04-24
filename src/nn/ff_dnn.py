@@ -6,6 +6,7 @@ import time
 import argparse
 import os
 import pickle
+import math
 
 ###################
 # Of Machine & Men
@@ -150,7 +151,7 @@ with tf.Session() as sess:
 
             # Calc f score and save to list
             baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
-            fscore = 0
+            mcc = 0
 
             for i in range(0, len(teY)):
                 if np.argmax(teY[i]) == 1:  # email is legitimate
@@ -165,11 +166,12 @@ with tf.Session() as sess:
                         baseScore[1] += 1
 
             if baseScore[0]:
-                precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
-                recall = baseScore[0] / (baseScore[0] + baseScore[3])
-                fscore = 2 * ((precision * recall) / (precision + recall))
+                #precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
+                #recall = baseScore[0] / (baseScore[0] + baseScore[3])
+                #fscore = 2 * ((precision * recall) / (precision + recall))
+                mcc = ((baseScore[0]*baseScore[1]) - (baseScore[2]*baseScore[3]))/(math.sqrt((baseScore[0]+baseScore[2])*(baseScore[0]+baseScore[3])*(baseScore[1]+baseScore[2])*(baseScore[1]+baseScore[3])))
 
-            f1Scores.append(fscore)
+            f1Scores.append(mcc)
 
             # Attempt this args.batch_size
             print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
