@@ -28,10 +28,11 @@ parser.add_argument('-n', '--hidden-neurons', type=int, default=0)
 parser.add_argument('-b', '--batch-size', type=int, default=100)
 parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
 parser.add_argument('-z', '--iterations', type=int, default=100)
-parser.add_argument('-t', '--train', type=bool, default=True)
 parser.add_argument('-x', '--tolerance', type=float, default=0)
 parser.add_argument('-s', '--save-point')
-# parser.add_argument('--tolerance', type=float, default=0.001)
+parser.add_argument('--train', dest='train', action='store_true')
+parser.add_argument('--no-train', dest='train', action='store_false')
+parser.set_defaults(train=True)
 args = parser.parse_args()
 
 if(not args.input):
