@@ -15,6 +15,8 @@ for i in `seq 1000 100 2500`;
 do
     for h in `seq $((i)) $((i/10)) $((2*i))`;
     do
+        last_nn=""
+        last_dnn=""
         if [ -f logs/ffnn/${i}-${h}.log ]; then
             last_nn=$(tail -n 1 logs/ffnn/${i}-${h}.log)
         fi
