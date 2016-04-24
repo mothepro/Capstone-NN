@@ -40,7 +40,7 @@ class EmailSet(object):
                 line = line.strip().split(' ')
 
                 # this could be taken out by modifying FEATURES project output format for labels
-                line[ -1 ] = 1 if line[-1] == 'H' else 0
+                line[ -1 ] = 1 if line[-1] == 'S' else 0
                 line.append(1 if line[-1] == 0 else 0)
 
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
