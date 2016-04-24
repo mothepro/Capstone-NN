@@ -26,5 +26,17 @@ do
             -x 0.01 \
             -s ./chk/ffnn/${i}-${h} \
         > ./logs/ffnn/${i}-${h}.log
+
+        echo -e "Running Deep Neural Network with ${i} input neurons & ${h} hidden neurons"
+        python src/nn/ff_dnn.py \
+            -f ./build/matrix.pickle \
+            -i ${i} \
+            -n ${h} \
+            -b 100 \
+            -l 0.005 \
+            -z 75 \
+            -x 0.01 \
+            -s ./chk/ffdnn/${i}-${h} \
+        > ./logs/ffdnn/${i}-${h}.log
     done
 done
