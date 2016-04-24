@@ -147,20 +147,23 @@ with tf.Session() as sess:
     tf.initialize_all_variables().run()
 
     # Lets train over this set a few times
-    for i in range(args.iterations):
+    for itera in range(args.iterations):
         accuracy = []
-        f1score = []
+        f1Scores = []
 
         for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
-            step = start // args.batch_size
+            batchNum = start // args.batch_size
+
+            # Lets try to predict the test now
+            predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
 
             # Calculate accuracy and save it to accuracy list
-            predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
-            accuracy.append(np.mean(
-                np.argmax(trY[start:end], axis=1) == predictionList
-            ))
+            accuracy.append(np.mean(np.argmax(trY[start:end], axis=1) == predictionList))
 
+            # Calc f score and save to list
             baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
+            fscore = 0
+
             for i in range(start, end):
                 if trY[i] == 1:  # email is legitimate
                     if predictionList[i - start] == 1:  # predicted legitimate as legitimate    (true positive)
@@ -172,31 +175,32 @@ with tf.Session() as sess:
                         baseScore[2] += 1
                     else:  # predicted spam as spam                (true negative)
                         baseScore[1] += 1
-            print(baseScore)
-            precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
-            recall = baseScore[0] / (baseScore[0] + baseScore[3])
-            fscore = 2 * ((precision * recall) / (precision + recall))
 
-            f1score.append(fscore)
+            if(not baseScore[0] == 0):
+                precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
+                recall = baseScore[0] / (baseScore[0] + baseScore[3])
+                fscore = 2 * ((precision * recall) / (precision + recall))
+
+            f1Scores.append(fscore)
 
             # Attempt this args.batch_size
-            print("Test>> Iteration: {:d}\targs.batch_size: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
-                i,
-                step, #args.batch_size
-                i*(len(trX)//args.batch_size)+step, #step
-                accuracy[step],
+            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
+                itera,
+                batchNum,
+                itera * (len(trX)//args.batch_size) + batchNum,
+                accuracy[-1],
                 np.average(accuracy),
-                f1score[step],
-                np.average(f1score)
+                f1Scores[-1],
+                np.average(f1Scores)
             ))
 
             # Then train on it
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
 
             # Log the train duration
-            print("Train>> Iteration: {:d}\targs.batch_size: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
-                i,
-                step,
-                i * (len(trX) // args.batch_size) + step,
+            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
+                itera,
+                batchNum,
+                itera * (len(trX) // args.batch_size) + batchNum,
                 time.time()
             ))
