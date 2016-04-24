@@ -46,7 +46,7 @@ class EmailSet(object):
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
                 i += 1
 
-        # shuffle(matrix)
+        shuffle(matrix)
         return matrix
 
 # Read Command line args
@@ -84,7 +84,10 @@ teX = in_data.matrix[size:]
 teY = in_data.labels[size:]
 
 print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
-
+# print('train X', trX)
+# print('train Y', trY)
+# print('test X', teX)
+# print('test Y', teY)
 ####################
 # Hyper Parameters #
 ####################
@@ -92,10 +95,10 @@ print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
 if args.input_neurons: # Use only first X features
     trX = [row[:args.input_neurons] for row in trX]
     teX = [row[:args.input_neurons] for row in teX]
-input_layer = len(trX[0])
 
+input_layer = len(trX[0])
 hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
-output_layer = len(trY[0])
+output_layer = 2 # len(trY[0])
 
 ########################
 # Build Neural Network #
@@ -104,19 +107,21 @@ output_layer = len(trY[0])
 def init_weights(shape):
     return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
-def model(X, w_h, w_o, b_h, b_o):
-    h = tf.nn.tanh(
-        tf.add(
-            tf.matmul(X, w_h),
-            b_h
-        )
-    )
+def model(X, w_h, w_o): # , b_h, b_o):
+    h = tf.matmul(X, w_h)
+    # h = tf.nn.tanh(
+    #     tf.add(
+    #         tf.matmul(X, w_h),
+    #         b_h
+    #     )
+    # )
 
     # we dont take the softmax at the end because our cost fn does that for us
-    predict = tf.add(
-        tf.matmul(h, w_o),
-        b_o
-    )
+    predict = tf.matmul(h, w_o)
+    # predict = tf.add(
+    #     tf.matmul(h, w_o),
+    #     b_o
+    # )
 
     return predict
 
@@ -129,11 +134,11 @@ w_h = init_weights([input_layer, hidden_layer])
 w_o = init_weights([hidden_layer, output_layer])
 
 # Biases
-b_h = init_weights([1, hidden_layer])
-b_o = init_weights([1, output_layer])
+# b_h = init_weights([1, hidden_layer])
+# b_o = init_weights([1, output_layer])
 
 # Prediction
-py_x = model(X, w_h, w_o, b_h, b_o)
+py_x = model(X, w_h, w_o) # , b_h, b_o)
 predict_op = tf.argmax(py_x, 1) # Spam or Ham
 
 # compute costs
@@ -156,27 +161,28 @@ with tf.Session() as sess:
 
             # Lets try to predict the test now
             predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
+            print(predictionList, np.argmax(teY, axis=1))
 
             # Calculate accuracy and save it to accuracy list
-            accuracy.append(np.mean(np.argmax(trY[start:end], axis=1) == predictionList))
+            accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
 
             # Calc f score and save to list
             baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
             fscore = 0
 
-            for i in range(start, end):
-                if trY[i] == 1:  # email is legitimate
-                    if predictionList[i - start] == 1:  # predicted legitimate as legitimate    (true positive)
+            for i in range(0, len(teY)):
+                if np.argmax(teY[i]) == 1:  # email is legitimate
+                    if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
                         baseScore[0] += 1
-                    elif predictionList[i - start] == 0:  # predicted legitimate as spam          (false negative)
+                    else:  # predicted legitimate as spam          (false negative)
                         baseScore[3] += 1
                 else:  # email is spam
-                    if predictionList[i - start] == 1:  # predicted spam as legitimate          (false positive)
+                    if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
                         baseScore[2] += 1
                     else:  # predicted spam as spam                (true negative)
                         baseScore[1] += 1
-
-            if(not baseScore[0] == 0):
+            print(baseScore)
+            if baseScore[0]:
                 precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
                 recall = baseScore[0] / (baseScore[0] + baseScore[3])
                 fscore = 2 * ((precision * recall) / (precision + recall))
@@ -184,7 +190,7 @@ with tf.Session() as sess:
             f1Scores.append(fscore)
 
             # Attempt this args.batch_size
-            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
+            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
                 itera,
                 batchNum,
                 itera * (len(trX)//args.batch_size) + batchNum,
