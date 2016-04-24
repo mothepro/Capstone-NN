@@ -3,9 +3,9 @@
 import tensorflow as tf
 import numpy as np
 import time
-from random import shuffle
 import argparse
 import os
+import pickle
 
 ###################
 # Of Machine & Men
@@ -18,76 +18,38 @@ import os
 #
 ###################
 
-########
-# read input from features matrix
-# store in matrix data structures for NN processing
-########
-
-class EmailSet(object):
-    def __init__(self,matrix_dir):
-        self.all = self.read_matrix(matrix_dir)
-        self.labels = [row[-2:] for row in self.all]
-        self.matrix = [row[:-2] for row in self.all]
-
-    def read_matrix(self,matrix_dir):
-        matrix = []
-
-        with open(matrix_dir,"r") as matrix_file:
-            i = 0
-            for line in matrix_file:
-                matrix.append([])
-
-                line = line.strip().split(' ')
-
-                # this could be taken out by modifying FEATURES project output format for labels
-                line[ -1 ] = 1 if line[-1] == 'S' else 0
-                line.append(1 if line[-1] == 0 else 0)
-
-                matrix[i] = [int(entry) for entry in line if entry != ' ']
-                i += 1
-
-        shuffle(matrix)
-        return matrix
-
 # Read Command line args
 # Overwrites the hyper parameters
 
 parser = argparse.ArgumentParser(description='Simple FeedForward Neural Network')
-parser.add_argument('-f', '--input-matrix')
+parser.add_argument('-f', '--input')
 parser.add_argument('-i', '--input-neurons', type=int, default=0)
 parser.add_argument('-n', '--hidden-neurons', type=int, default=0)
-parser.add_argument('-b', '--batch-size', type=int, default=128)
+parser.add_argument('-b', '--batch-size', type=int, default=100)
 parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
-parser.add_argument('--iterations', type=int, default=100)
+parser.add_argument('-z', '--iterations', type=int, default=100)
 args = parser.parse_args()
 
-if(not args.input_matrix):
+if(not args.input):
     print("Input matrix file not given.")
     parser.print_help()
     exit(1)
 
-if(not os.path.isfile(args.input_matrix)):
-    print("File {:s} doesn't exist.".format(args.input_matrix))
+if(not os.path.isfile(args.input)):
+    print("File {:s} doesn't exist.".format(args.input))
     exit(1)
 
 ##############
 # Get Inputs #
 ##############
 
-print("Reading Training data from '{:s}'.".format(args.input_matrix))
+print("Reading Training data from '{:s}'.".format(args.input))
 
-in_data = EmailSet(args.input_matrix)
-size = int(len(in_data.matrix) * .8)
-trX = in_data.matrix[:size]
-trY = in_data.labels[:size]
-teX = in_data.matrix[size:]
-teY = in_data.labels[size:]
+with open(args.input, 'rb') as pickle_file:
+    trX, trY, teX, teY = pickle.load(pickle_file)
 
 print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
-# print('train X', trX)
-# print('train Y', trY)
-# print('test X', teX)
-# print('test Y', teY)
+
 ####################
 # Hyper Parameters #
 ####################
@@ -99,6 +61,8 @@ if args.input_neurons: # Use only first X features
 input_layer = len(trX[0])
 hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
 output_layer = 2 # len(trY[0])
+
+print("Using first {:d} input neurons, {:d} hidden neurons, {:d} output neurons".format(input_layer, hidden_layer, output_layer))
 
 ########################
 # Build Neural Network #
@@ -161,7 +125,6 @@ with tf.Session() as sess:
 
             # Lets try to predict the test now
             predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
-            print(predictionList, np.argmax(teY, axis=1))
 
             # Calculate accuracy and save it to accuracy list
             accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
@@ -181,7 +144,7 @@ with tf.Session() as sess:
                         baseScore[2] += 1
                     else:  # predicted spam as spam                (true negative)
                         baseScore[1] += 1
-            print(baseScore)
+
             if baseScore[0]:
                 precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
                 recall = baseScore[0] / (baseScore[0] + baseScore[3])
