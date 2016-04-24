@@ -25,9 +25,9 @@ import os
 
 class EmailSet(object):
     def __init__(self,matrix_dir):
-        self.matrix = self.read_matrix(matrix_dir)
-        self.labels = self.create_label_matrix()
-        self.matrix = self.remove_label_matrix(self.matrix)
+        self.all = self.read_matrix(matrix_dir)
+        self.labels = [row[-2:] for row in self.all]
+        self.matrix = [row[:-2] for row in self.all]
 
     def read_matrix(self,matrix_dir):
         matrix = []
@@ -39,21 +39,14 @@ class EmailSet(object):
 
                 line = line.strip().split(' ')
 
-                #this could be taken out by modifying FEATURES project output format for labels
+                # this could be taken out by modifying FEATURES project output format for labels
                 line[ -1 ] = 1 if line[-1] == 'H' else 0
                 line.append(1 if line[-1] == 0 else 0)
 
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
+                i += 1
 
         # shuffle(matrix)
-        return matrix
-
-    def create_label_matrix(self):
-        matrix_label = [[entry[-2], entry[-1]] for entry in self.matrix]
-        return matrix_label
-
-    def remove_label_matrix(self,matrix):
-        matrix = [entry[:-2] for entry in matrix]
         return matrix
 
 # Read Command line args
@@ -62,11 +55,16 @@ class EmailSet(object):
 parser = argparse.ArgumentParser(description='Simple FeedForward Neural Network')
 parser.add_argument('-f', '--input-matrix')
 parser.add_argument('-i', '--input-neurons', type=int, default=0)
-parser.add_argument('-h', '--hidden-neurons', type=int, default=0)
+parser.add_argument('-n', '--hidden-neurons', type=int, default=0)
 parser.add_argument('-b', '--batch-size', type=int, default=128)
 parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
 parser.add_argument('--iterations', type=int, default=100)
 args = parser.parse_args()
+
+if(not args.input_matrix):
+    print("Input matrix file not given.")
+    parser.print_help()
+    exit(1)
 
 if(not os.path.isfile(args.input_matrix)):
     print("File {:s} doesn't exist.".format(args.input_matrix))
@@ -91,9 +89,12 @@ print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
 # Hyper Parameters #
 ####################
 
-input_layer = args.input_neurons or len(trX[0])
-hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
+if args.input_neurons: # Use only first X features
+    trX = [row[:args.input_neurons] for row in trX]
+    teX = [row[:args.input_neurons] for row in teX]
+input_layer = len(trX[0])
 
+hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
 output_layer = len(trY[0])
 
 ########################
@@ -102,7 +103,6 @@ output_layer = len(trY[0])
 
 def init_weights(shape):
     return tf.Variable(tf.random_normal(shape, stddev=0.01))
-
 
 def model(X, w_h, w_o, b_h, b_o):
     h = tf.nn.tanh(
@@ -155,7 +155,7 @@ with tf.Session() as sess:
             step = start // args.batch_size
 
             # Calculate accuracy and save it to accuracy list
-            predictionList = sess.run(predict_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
+            predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
             accuracy.append(np.mean(
                 np.argmax(trY[start:end], axis=1) == predictionList
             ))
@@ -172,7 +172,7 @@ with tf.Session() as sess:
                         baseScore[2] += 1
                     else:  # predicted spam as spam                (true negative)
                         baseScore[1] += 1
-
+            print(baseScore)
             precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
             recall = baseScore[0] / (baseScore[0] + baseScore[3])
             fscore = 2 * ((precision * recall) / (precision + recall))
