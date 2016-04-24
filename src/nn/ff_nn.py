@@ -124,7 +124,7 @@ with tf.Session() as sess:
     cost_values = [0]
 
     accuracy = []
-    f1Scores = []
+    mcclist = []
 
     saver = None
     if args.save_point:
@@ -143,38 +143,43 @@ with tf.Session() as sess:
             accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
 
             # Calc f score and save to list
-            baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
+            baselist = [0, 0, 0, 0]  # tp,tn,fp,fn
             mcc = 0
 
             for i in range(0, len(teY)):
                 if np.argmax(teY[i]) == 1:  # email is legitimate
                     if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
-                        baseScore[0] += 1
+                        baselist[0] += 1
                     else:  # predicted legitimate as spam          (false negative)
-                        baseScore[3] += 1
+                        baselist[3] += 1
                 else:  # email is spam
                     if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
-                        baseScore[2] += 1
+                        baselist[2] += 1
                     else:  # predicted spam as spam                (true negative)
-                        baseScore[1] += 1
+                        baselist[1] += 1
 
-            if baseScore[0]:
-                #precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
-                #recall = baseScore[0] / (baseScore[0] + baseScore[3])
+            tp = baselist[0]
+            tn = baselist[1]
+            fp = baselist[2]
+            fn = baselist[3]
+
+            if tp:
+                #precision = baselist[0] / (baselist[0] + baselist[2])  # might not cast automatically
+                #recall = baselist[0] / (baselist[0] + baselist[3])
                 #fscore = 2 * ((precision * recall) / (precision + recall))
-                mcc = ((baseScore[0]*baseScore[1]) - (baseScore[2]*baseScore[3]))/(math.sqrt((baseScore[0]+baseScore[2])*(baseScore[0]+baseScore[3])*(baseScore[1]+baseScore[2])*(baseScore[1]+baseScore[3])))
+                mcc = ((tp*tn) - (fp*fn)) / math.sqrt((tp+fp) * (tp+fn) * (tn+fp) * (tn+fn))
 
-            f1Scores.append(mcc)
+            mcclist.append(mcc)
 
             # Attempt this args.batch_size
-            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
+            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tMCC: {:.7f}\tMCC Aggregate: {:.7f}".format(
                 itera,
                 batchNum,
                 step,
                 accuracy[-1],
                 np.average(accuracy),
-                f1Scores[-1],
-                np.average(f1Scores)
+                mcclist[-1],
+                np.average(mcclist)
             ))
 
             # Then train on it
