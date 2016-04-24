@@ -230,6 +230,8 @@ with tf.Session() as sess:
     else: # test only given set
         predictionList = sess.run(py_x, feed_dict={X: teX})
         for i, prob in enumerate(predictionList):
-            print(i, np.argmax(prob), prob[1] - prob[0], prob)
+            # Score is difference / magic num between -1 & 1
+            score = np.tanh((prob[1] - prob[0])/10)
+            print(i, score)
 
     sess.close()
