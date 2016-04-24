@@ -49,22 +49,29 @@ if(not os.path.isfile(args.input)):
 # Get Inputs #
 ##############
 
-print("Reading Training data from '{:s}'.".format(args.input))
+if args.train:
+    print("Reading Training data from '{:s}'.".format(args.input))
 
-with open(args.input, 'rb') as pickle_file:
-    trX, trY, teX, teY = pickle.load(pickle_file)
+    with open(args.input, 'rb') as pickle_file:
+        trX, trY, teX, teY = pickle.load(pickle_file)
 
-print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
+    print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
+else:
+    print("Reading Test data from '{:s}'.".format(args.input))
+
+    with open(args.input, 'rb') as pickle_file:
+        teX = pickle.load(pickle_file)
 
 ####################
 # Hyper Parameters #
 ####################
 
 if args.input_neurons: # Use only first X features
-    trX = [row[:args.input_neurons] for row in trX]
+    if args.train:
+        trX = [row[:args.input_neurons] for row in trX]
     teX = [row[:args.input_neurons] for row in teX]
 
-input_layer = len(trX[0])
+input_layer = len(teX[0])
 hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
 output_layer = 2 # len(trY[0])
 
@@ -132,11 +139,11 @@ with tf.Session() as sess:
 
         ckpt = tf.train.get_checkpoint_state(args.save_point)
         if ckpt and ckpt.model_checkpoint_path:
+            print("Using weights from", ckpt.model_checkpoint_path)
             saver.restore(sess, ckpt.model_checkpoint_path)
 
     if args.train: # Lets train over this set a few times
         for itera in range(args.iterations):
-
             # Train in batches
             for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
                 batchNum = start // args.batch_size
@@ -206,10 +213,11 @@ with tf.Session() as sess:
                 if diff < args.tolerance: # Check if we should quit
                     print("Cost Converging with difference of {:.7f}".format(diff))
                     break
+
         print("Finished Training")
     else: # test only given set
         predictionList = sess.run(py_x, feed_dict={X: teX})
         for i, prob in enumerate(predictionList):
-            print(i, np.argmax(prob, axis=1), prob[1] - prob[0], np.argmax(teY, axis=1))
+            print(i, np.argmax(prob), prob[1] - prob[0], prob)
 
     sess.close()

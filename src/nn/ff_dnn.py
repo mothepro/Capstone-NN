@@ -49,22 +49,29 @@ if(not os.path.isfile(args.input)):
 # Get Inputs #
 ##############
 
-print("Reading Training data from '{:s}'.".format(args.input))
+if args.train:
+    print("Reading Training data from '{:s}'.".format(args.input))
 
-with open(args.input, 'rb') as pickle_file:
-    trX, trY, teX, teY = pickle.load(pickle_file)
+    with open(args.input, 'rb') as pickle_file:
+        trX, trY, teX, teY = pickle.load(pickle_file)
 
-print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
+    print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
+else:
+    print("Reading Test data from '{:s}'.".format(args.input))
+
+    with open(args.input, 'rb') as pickle_file:
+        teX = pickle.load(pickle_file)
 
 ####################
 # Hyper Parameters #
 ####################
 
 if args.input_neurons: # Use only first X features
-    trX = [row[:args.input_neurons] for row in trX]
+    if args.train:
+        trX = [row[:args.input_neurons] for row in trX]
     teX = [row[:args.input_neurons] for row in teX]
 
-input_layer = len(trX[0])
+input_layer = len(teX[0])
 hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
 output_layer = 2 # len(trY[0])
 
@@ -137,76 +144,87 @@ with tf.Session() as sess:
     if args.save_point:
         saver = tf.train.Saver()
 
-    # Lets train over this set a few times
-    for itera in range(args.iterations):
+        ckpt = tf.train.get_checkpoint_state(args.save_point)
+        if ckpt and ckpt.model_checkpoint_path:
+            print("Using weights from", ckpt.model_checkpoint_path)
+            saver.restore(sess, ckpt.model_checkpoint_path)
 
-        for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
-            batchNum = start // args.batch_size
+    if args.train: # Lets train over this set a few times
+        for itera in range(args.iterations):
+            # Train in batches
+            for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
+                batchNum = start // args.batch_size
 
-            # Lets try to predict the test now
-            predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
+                # Lets try to predict the test now
+                predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
 
-            # Calculate accuracy and save it to accuracy list
-            accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
+                # Calculate accuracy and save it to accuracy list
+                accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
 
-            # Calc f score and save to list
-            baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
-            mcc = 0
+                # Calc f score and save to list
+                baseScore = [0, 0, 0, 0]  # tp,tn,fp,fn
+                mcc = 0
 
-            for i in range(0, len(teY)):
-                if np.argmax(teY[i]) == 1:  # email is legitimate
-                    if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
-                        baseScore[0] += 1
-                    else:  # predicted legitimate as spam          (false negative)
-                        baseScore[3] += 1
-                else:  # email is spam
-                    if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
-                        baseScore[2] += 1
-                    else:  # predicted spam as spam                (true negative)
-                        baseScore[1] += 1
+                for i in range(0, len(teY)):
+                    if np.argmax(teY[i]) == 1:  # email is legitimate
+                        if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
+                            baseScore[0] += 1
+                        else:  # predicted legitimate as spam          (false negative)
+                            baseScore[3] += 1
+                    else:  # email is spam
+                        if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
+                            baseScore[2] += 1
+                        else:  # predicted spam as spam                (true negative)
+                            baseScore[1] += 1
 
-            if baseScore[0]:
-                #precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
-                #recall = baseScore[0] / (baseScore[0] + baseScore[3])
-                #fscore = 2 * ((precision * recall) / (precision + recall))
-                mcc = ((baseScore[0]*baseScore[1]) - (baseScore[2]*baseScore[3]))/(math.sqrt((baseScore[0]+baseScore[2])*(baseScore[0]+baseScore[3])*(baseScore[1]+baseScore[2])*(baseScore[1]+baseScore[3])))
+                if baseScore[0]:
+                    #precision = baseScore[0] / (baseScore[0] + baseScore[2])  # might not cast automatically
+                    #recall = baseScore[0] / (baseScore[0] + baseScore[3])
+                    #fscore = 2 * ((precision * recall) / (precision + recall))
+                    mcc = ((baseScore[0]*baseScore[1]) - (baseScore[2]*baseScore[3]))/(math.sqrt((baseScore[0]+baseScore[2])*(baseScore[0]+baseScore[3])*(baseScore[1]+baseScore[2])*(baseScore[1]+baseScore[3])))
 
-            f1Scores.append(mcc)
+                f1Scores.append(mcc)
 
-            # Attempt this args.batch_size
-            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
-                itera,
-                batchNum,
-                step,
-                accuracy[-1],
-                np.average(accuracy),
-                f1Scores[-1],
-                np.average(f1Scores)
-            ))
+                # Attempt this args.batch_size
+                print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
+                    itera,
+                    batchNum,
+                    step,
+                    accuracy[-1],
+                    np.average(accuracy),
+                    f1Scores[-1],
+                    np.average(f1Scores)
+                ))
 
-            # Then train on it
-            sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
+                # Then train on it
+                sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
 
-            # Log the train duration
-            # print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
-            #     itera,
-            #     batchNum,
-            #     step,
-            #     time.time()
-            # ))
+                # Log the train duration
+                print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
+                    itera,
+                    batchNum,
+                    step,
+                    time.time()
+                ))
 
-            step += 1
+                step += 1
 
-        if saver: # Save the weights
-            saver.save(sess, args.save_point, global_step=itera)
+            if saver and args.train: # Save the weights if training
+                saver.save(sess, args.save_point, global_step=itera)
 
-        if args.tolerance:
-            # Add training cost to list
-            cost_values.append(sess.run(cost, feed_dict={X: trX, Y: trY}))
-            diff = abs(cost_values[-1] - cost_values[-2])
+            if args.tolerance: # Check if cost is still decreasing
+                # Add training cost to list
+                cost_values.append(sess.run(cost, feed_dict={X: trX, Y: trY}))
+                diff = abs(cost_values[-1] - cost_values[-2])
 
-            if diff < args.tolerance: # Check if we should quit
-                print("Cost Converging with difference of {:.7f}".format(diff))
-                break
+                if diff < args.tolerance: # Check if we should quit
+                    print("Cost Converging with difference of {:.7f}".format(diff))
+                    break
+
+        print("Finished Training")
+    else: # test only given set
+        predictionList = sess.run(py_x, feed_dict={X: teX})
+        for i, prob in enumerate(predictionList):
+            print(i, np.argmax(prob), prob[1] - prob[0], prob)
 
     sess.close()
