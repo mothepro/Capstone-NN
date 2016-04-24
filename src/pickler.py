@@ -21,7 +21,7 @@ from random import shuffle
 parser = argparse.ArgumentParser(description='Turn feature list into pickle dump')
 parser.add_argument('-i', '--input')
 parser.add_argument('-o', '--output', default='')
-parser.add_argument('-t', '--train', type=float, default=0.8)
+parser.add_argument('-t', '--train', type=float, default=0.0)
 args = parser.parse_args()
 
 if(not args.input):
@@ -40,12 +40,16 @@ if(not os.path.isfile(args.input)):
 ########
 
 class EmailSet(object):
-    def __init__(self,matrix_dir):
-        all = self.read_matrix(matrix_dir)
-        self.labels = [row[-2:] for row in all]
-        self.matrix = [row[:-2] for row in all]
+    def __init__(self,matrix_dir,labeled):
+        all = self.read_matrix(matrix_dir,labeled)
 
-    def read_matrix(self,matrix_dir):
+        if labeled :
+            self.labels = [row[-2:] for row in all]
+            self.matrix = [row[:-2] for row in all]
+        else:
+            self.matrix = all
+
+    def read_matrix(self,matrix_dir,labeled):
         matrix = []
 
         with open(matrix_dir,"r") as matrix_file:
@@ -55,9 +59,9 @@ class EmailSet(object):
 
                 line = line.strip().split(' ')
 
-                # this could be taken out by modifying FEATURES project output format for labels
-                line[ -1 ] = 1 if line[-1] == 'S' else 0
-                line.append(1 if line[-1] == 0 else 0)
+                if labeled : # this could be taken out by modifying FEATURES project output format for labels
+                    line[ -1 ] = 1 if line[-1] == 'S' else 0
+                    line.append(1 if line[-1] == 0 else 0)
 
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
                 i += 1
@@ -66,19 +70,21 @@ class EmailSet(object):
         return matrix
 
 def save_object(obj, filename):
-    with open(filename, 'wb') as output:
-        pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+    if args.output: # save to file
+        with open(filename, 'wb') as output:
+            pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
+    else:
+        print(pickle.dumps(obj, pickle.HIGHEST_PROTOCOL))
 
-emails = EmailSet(args.input)
-size = int(len(emails.matrix) * args.train)
-output = [
-    emails.matrix[:size],  # training emails
-    emails.labels[:size],  # training labels
-    emails.matrix[size:],  # testing emails
-    emails.labels[size:]  # testing labels
-]
-
-if args.output: # save to file
-    save_object(output, args.output)
+if args.train: # Training Data
+    emails = EmailSet(args.input, True)
+    size = int(len(emails.matrix) * args.train)
+    save_object([
+        emails.matrix[:size],  # training emails
+        emails.labels[:size],  # training labels
+        emails.matrix[size:],  # testing emails
+        emails.labels[size:]  # testing labels
+    ], args.output)
 else:
-    print(pickle.dumps(output, pickle.HIGHEST_PROTOCOL))
+    emails = EmailSet(args.input, False)
+    save_object(emails.matrix, args.output)
