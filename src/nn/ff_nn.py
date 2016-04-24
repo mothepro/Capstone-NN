@@ -28,6 +28,9 @@ parser.add_argument('-n', '--hidden-neurons', type=int, default=0)
 parser.add_argument('-b', '--batch-size', type=int, default=100)
 parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
 parser.add_argument('-z', '--iterations', type=int, default=100)
+parser.add_argument('-t', '--train', type=bool, default=True)
+parser.add_argument('-s', '--save-point')
+# parser.add_argument('--tolerance', type=float, default=0.001)
 args = parser.parse_args()
 
 if(not args.input):
@@ -71,21 +74,21 @@ print("Using first {:d} input neurons, {:d} hidden neurons, {:d} output neurons"
 def init_weights(shape):
     return tf.Variable(tf.random_normal(shape, stddev=0.01))
 
-def model(X, w_h, w_o): # , b_h, b_o):
-    h = tf.matmul(X, w_h)
-    # h = tf.nn.tanh(
-    #     tf.add(
-    #         tf.matmul(X, w_h),
-    #         b_h
-    #     )
-    # )
+def model(X, w_h, w_o, b_h, b_o):
+    # h = tf.matmul(X, w_h)
+    h = tf.nn.tanh(
+        tf.add(
+            tf.matmul(X, w_h),
+            b_h
+        )
+    )
 
     # we dont take the softmax at the end because our cost fn does that for us
-    predict = tf.matmul(h, w_o)
-    # predict = tf.add(
-    #     tf.matmul(h, w_o),
-    #     b_o
-    # )
+    # predict = tf.matmul(h, w_o)
+    predict = tf.add(
+        tf.matmul(h, w_o),
+        b_o
+    )
 
     return predict
 
@@ -98,11 +101,11 @@ w_h = init_weights([input_layer, hidden_layer])
 w_o = init_weights([hidden_layer, output_layer])
 
 # Biases
-# b_h = init_weights([1, hidden_layer])
-# b_o = init_weights([1, output_layer])
+b_h = init_weights([1, hidden_layer])
+b_o = init_weights([1, output_layer])
 
 # Prediction
-py_x = model(X, w_h, w_o) # , b_h, b_o)
+py_x = model(X, w_h, w_o , b_h, b_o)
 predict_op = tf.argmax(py_x, 1) # Spam or Ham
 
 # compute costs
@@ -114,6 +117,11 @@ train_op = tf.train.GradientDescentOptimizer(args.learning_rate).minimize(cost)
 # Launch the graph in a session
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
+    step = 0
+
+    saver = None
+    if args.save_point:
+        saver = tf.train.Saver()
 
     # Lets train over this set a few times
     for itera in range(args.iterations):
@@ -156,7 +164,7 @@ with tf.Session() as sess:
             print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
                 itera,
                 batchNum,
-                itera * (len(trX)//args.batch_size) + batchNum,
+                step,
                 accuracy[-1],
                 np.average(accuracy),
                 f1Scores[-1],
@@ -170,6 +178,13 @@ with tf.Session() as sess:
             print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
                 itera,
                 batchNum,
-                itera * (len(trX) // args.batch_size) + batchNum,
+                step,
                 time.time()
             ))
+
+            step += 1
+
+        if saver: # Save the weights
+            saver.save(sess, args.save_point + __file__, global_step=itera)
+
+    sess.close()
