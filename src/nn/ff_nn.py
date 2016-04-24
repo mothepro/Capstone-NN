@@ -5,9 +5,7 @@ import numpy as np
 import time
 from random import shuffle
 import argparse
-
-DATA_SOURCE = './data/matrixEnron6.txt'
-
+import os
 
 ###################
 # Of Machine & Men
@@ -47,7 +45,7 @@ class EmailSet(object):
 
                 matrix[i] = [int(entry) for entry in line if entry != ' ']
 
-        shuffle(matrix)
+        # shuffle(matrix)
         return matrix
 
     def create_label_matrix(self):
@@ -62,30 +60,25 @@ class EmailSet(object):
 # Overwrites the hyper parameters
 
 parser = argparse.ArgumentParser(description='Simple FeedForward Neural Network')
-parser.add_argument('')
-try:
-    opts, args = getopt.getopt(sys.argv[1:], "d:i:h:b:",
-                               ["data-set=", "input-neurons=", "hidden-neurons=", "batch-size="])
-except getopt.GetoptError:
-    sys.exit(2)
+parser.add_argument('-f', '--input-matrix')
+parser.add_argument('-i', '--input-neurons', type=int, default=0)
+parser.add_argument('-h', '--hidden-neurons', type=int, default=0)
+parser.add_argument('-b', '--batch-size', type=int, default=128)
+parser.add_argument('-l', '--learning-rate', type=float, default=0.05)
+parser.add_argument('--iterations', type=int, default=100)
+args = parser.parse_args()
 
-for opt, arg in opts:
-    if opt in ("-i", "--input-neurons"):
-        input_layer = int(arg)
-    elif opt in ("-d", "--data-set"):
-        dataSet = int(arg)
-    elif opt in ("-h", "--hidden-neurons"):
-        hidden_layer = int(arg)
-    elif opt in ("-b", "--batch-size"):
-        batch = int(arg)
+if(not os.path.isfile(args.input_matrix)):
+    print("File {:s} doesn't exist.".format(args.input_matrix))
+    exit(1)
 
 ##############
 # Get Inputs #
 ##############
 
-print("Reading Training data from '{:s}'.".format(DATA_SOURCE))
+print("Reading Training data from '{:s}'.".format(args.input_matrix))
 
-in_data = EmailSet(DATA_SOURCE)
+in_data = EmailSet(args.input_matrix)
 size = int(len(in_data.matrix) * .8)
 trX = in_data.matrix[:size]
 trY = in_data.labels[:size]
@@ -98,12 +91,10 @@ print("Using {:d} Training sets and {:d} Test sets".format(len(trX), len(teX)))
 # Hyper Parameters #
 ####################
 
-iterations = 100
-batch = 128
-input_layer = len(trX[0])
-hidden_layer = int(input_layer * 1.5)
+input_layer = args.input_neurons or len(trX[0])
+hidden_layer = args.hidden_neurons or int(input_layer * 1.5)
+
 output_layer = len(trY[0])
-learning_rate = 0.05
 
 ########################
 # Build Neural Network #
@@ -149,19 +140,19 @@ predict_op = tf.argmax(py_x, 1) # Spam or Ham
 cost = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(py_x, Y))
 
 # construct an optimizer (Back Prop)
-train_op = tf.train.GradientDescentOptimizer(learning_rate).minimize(cost)
+train_op = tf.train.GradientDescentOptimizer(args.learning_rate).minimize(cost)
 
 # Launch the graph in a session
 with tf.Session() as sess:
     tf.initialize_all_variables().run()
 
     # Lets train over this set a few times
-    for i in range(iterations):
+    for i in range(args.iterations):
         accuracy = []
         f1score = []
 
-        for start, end in zip(range(0, len(trX), batch), range(batch, len(trX), batch)):
-            step = start // batch
+        for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
+            step = start // args.batch_size
 
             # Calculate accuracy and save it to accuracy list
             predictionList = sess.run(predict_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
@@ -188,11 +179,11 @@ with tf.Session() as sess:
 
             f1score.append(fscore)
 
-            # Attempt this batch
-            print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
+            # Attempt this args.batch_size
+            print("Test>> Iteration: {:d}\targs.batch_size: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAggregate: {:.7f}\tFScore: {:.7f}\tFScore Aggregate: {:.7f}".format(
                 i,
-                step, #batch
-                i*(len(trX)//batch)+step, #step
+                step, #args.batch_size
+                i*(len(trX)//args.batch_size)+step, #step
                 accuracy[step],
                 np.average(accuracy),
                 f1score[step],
@@ -203,9 +194,9 @@ with tf.Session() as sess:
             sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
 
             # Log the train duration
-            print("Train>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
+            print("Train>> Iteration: {:d}\targs.batch_size: {:d}\tStep: {:d}\tTimestamp: {:.6f}".format(
                 i,
                 step,
-                i * (len(trX) // batch) + step,
+                i * (len(trX) // args.batch_size) + step,
                 time.time()
             ))
