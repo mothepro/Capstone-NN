@@ -226,7 +226,7 @@ with tf.Session() as sess:
                     print("Cost Converging with difference of {:.7f}".format(diff))
                     break
 
-        print("Finished Training")
+        print("Finished Training with accuracy of {:.7f} and MCC of {:.7f}".format(accuracy[-1], mcclist[-1]))
     else: # test only given set
         predictionList = sess.run(py_x, feed_dict={X: teX})
         for i, prob in enumerate(predictionList):

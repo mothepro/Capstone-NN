@@ -37,7 +37,7 @@ do
         if [[ $last_dnn == Finished* ]]; then
             echo -e "Running Deep Neural Network with ${i} input neurons & ${h} hidden neurons"
 
-            mkdir -p chk/ffnn/${i}/${h}
+            mkdir -p chk/ffdnn/${i}/${h}
             python src/nn/ff_dnn.py --train \
                 -f ./build/matrix.pickle \
                 -i ${i} \
