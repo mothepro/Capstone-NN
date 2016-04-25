@@ -199,7 +199,6 @@ with tf.Session() as sess:
             # Log Test Results
             print("Test>> Iteration: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tMCC: {:.7f}\tMCC Aggregate: {:.7f}".format(
                 itera,
-                step,
                 accuracy[-1],
                 np.average(accuracy),
                 mcclist[-1],
