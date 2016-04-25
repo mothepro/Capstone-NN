@@ -32,7 +32,7 @@ parser.add_argument('-z', '--iterations', type=int, default=100)
 parser.add_argument('-x', '--tolerance', type=float, default=0)
 parser.add_argument('-s', '--save-point')
 parser.add_argument('--train', dest='train', action='store_true')
-parser.add_argument('--no-train', dest='train', action='store_false')
+parser.add_argument('--test', dest='train', action='store_false')
 parser.set_defaults(train=True)
 args = parser.parse_args()
 
@@ -148,52 +148,6 @@ with tf.Session() as sess:
             for start, end in zip(range(0, len(trX), args.batch_size), range(args.batch_size, len(trX), args.batch_size)):
                 batchNum = start // args.batch_size
 
-                # Lets try to predict the test now
-                predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
-
-                # Calculate accuracy and save it to accuracy list
-                accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
-
-                # Calc f score and save to list
-                baselist = [0, 0, 0, 0]  # tp,tn,fp,fn
-                mcc = 0
-
-                for i in range(0, len(teY)):
-                    if np.argmax(teY[i]) == 1:  # email is legitimate
-                        if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
-                            baselist[0] += 1
-                        else:  # predicted legitimate as spam          (false negative)
-                            baselist[3] += 1
-                    else:  # email is spam
-                        if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
-                            baselist[2] += 1
-                        else:  # predicted spam as spam                (true negative)
-                            baselist[1] += 1
-
-                tp = baselist[0]
-                tn = baselist[1]
-                fp = baselist[2]
-                fn = baselist[3]
-
-                if tp:
-                    # precision = baselist[0] / (baselist[0] + baselist[2])  # might not cast automatically
-                    # recall = baselist[0] / (baselist[0] + baselist[3])
-                    # fscore = 2 * ((precision * recall) / (precision + recall))
-                    mcc = ((tp * tn) - (fp * fn)) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
-
-                mcclist.append(mcc)
-
-                # Attempt this args.batch_size
-                print("Test>> Iteration: {:d}\tBatch: {:d}\tStep: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tMCC: {:.7f}\tMCC Aggregate: {:.7f}".format(
-                    itera,
-                    batchNum,
-                    step,
-                    accuracy[-1],
-                    np.average(accuracy),
-                    mcclist[-1],
-                    np.average(mcclist)
-                ))
-
                 # Then train on it
                 sess.run(train_op, feed_dict={X: trX[start:end], Y: trY[start:end]})
 
@@ -206,6 +160,51 @@ with tf.Session() as sess:
                 ))
 
                 step += 1
+
+            # Lets try to predict the test now
+            predictionList = sess.run(predict_op, feed_dict={X: teX, Y: teY})
+
+            # Calculate accuracy and save it to accuracy list
+            accuracy.append(np.mean(np.argmax(teY, axis=1) == predictionList))
+
+            # Calc f score and save to list
+            baselist = [0, 0, 0, 0]  # tp,tn,fp,fn
+            mcc = 0
+
+            for i in range(0, len(teY)):
+                if np.argmax(teY[i]) == 1:  # email is legitimate
+                    if predictionList[i] == 1:  # predicted legitimate as legitimate    (true positive)
+                        baselist[0] += 1
+                    else:  # predicted legitimate as spam          (false negative)
+                        baselist[3] += 1
+                else:  # email is spam
+                    if predictionList[i] == 1:  # predicted spam as legitimate          (false positive)
+                        baselist[2] += 1
+                    else:  # predicted spam as spam                (true negative)
+                        baselist[1] += 1
+
+            tp = baselist[0]
+            tn = baselist[1]
+            fp = baselist[2]
+            fn = baselist[3]
+
+            if tp:
+                # precision = baselist[0] / (baselist[0] + baselist[2])  # might not cast automatically
+                # recall = baselist[0] / (baselist[0] + baselist[3])
+                # fscore = 2 * ((precision * recall) / (precision + recall))
+                mcc = ((tp * tn) - (fp * fn)) / math.sqrt((tp + fp) * (tp + fn) * (tn + fp) * (tn + fn))
+
+            mcclist.append(mcc)
+
+            # Log Test Results
+            print("Test>> Iteration: {:d}\tAccuracy: {:.7f}\tAccuracy Aggregate: {:.7f}\tMCC: {:.7f}\tMCC Aggregate: {:.7f}".format(
+                itera,
+                step,
+                accuracy[-1],
+                np.average(accuracy),
+                mcclist[-1],
+                np.average(mcclist)
+            ))
 
             if saver and args.train: # Save the weights if training
                 saver.save(sess, args.save_point, global_step=itera)

@@ -11,9 +11,9 @@ if [ ! -f ./build/matrix-80.pickle ]; then
     python ./src/pickler.py -i ./build/matrixEnron6.txt -o ./build/matrix-80.pickle -t 0.8
 fi
 
-for i in `seq 1000 100 2500`;
+for i in `seq 2000 100 2500`;
 do
-    for h in `seq $((i)) $((i/10)) $((2*i))`;
+    for h in `seq $((i)) $((i/5)) $((2*i))`;
     do
         last_nn=""
         last_dnn=""
