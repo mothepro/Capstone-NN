@@ -11,9 +11,9 @@ if [ ! -f ./build/matrix-80.pickle ]; then
 	python ./src/pickler.py -i ./build/matrixEnron6.txt -o ./build/matrix-80.pickle -t 0.8
 fi
 
-for i in `seq 2000 100 2500`;
+for i in `seq 2500 -100 2000`;
 do
-	for h in `seq $((i)) $((i/5)) $((2*i))`;
+	for h in `seq $((2*i)) -$((i/5)) $((i))`;
 	do
 		for model in `echo dnn; echo nn`;
 		do
@@ -23,7 +23,7 @@ do
 			fi
 
 			if [[ $last != Finished* ]]; then
-				if [ $model -eq "dnn"]
+				if [ $model == "dnn" ]; then
 					echo -e "Running Deep Neural Network with ${i} input neurons & ${h} hidden neurons"
 				else
 					echo -e "Running Neural Network with ${i} input neurons & ${h} hidden neurons"
