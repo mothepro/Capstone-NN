@@ -33,7 +33,6 @@ if(not os.path.isfile(args.input)):
     print("File {:s} doesn't exist.".format(args.input))
     exit(1)
 
-
 ########
 # read input from features matrix
 # store in matrix data structures for NN processing
@@ -41,37 +40,28 @@ if(not os.path.isfile(args.input)):
 
 class EmailSet(object):
     def __init__(self,matrix_dir,labeled):
-        all = self.read_matrix(matrix_dir,labeled)
+        self.matrix = []
+        self.labels = []
 
-        if labeled :
-            self.labels = [row[-2:] for row in all]
-            self.matrix = [row[:-2] for row in all]
-        else:
-            self.matrix = all
+        self.read_matrix(matrix_dir,labeled)
 
     def read_matrix(self,matrix_dir,labeled):
-        matrix = []
 
         with open(matrix_dir,"r") as matrix_file:
-            i = 0
             for line in matrix_file:
-                matrix.append([])
-
                 line = line.strip().split(' ')
 
-                if labeled : # this could be taken out by modifying FEATURES project output format for labels
-                    line[ -1 ] = 1 if line[-1] == 'S' else 0
-                    line.append(1 if line[-1] == 0 else 0)
+                if labeled:
+                    if line[1] == 1: # HAM
+                        self.labels.append([0, 1])
+                    elif line[1] == 0: # SPAM
+                        self.labels.append([1, 0])
 
-                # Remove last if it is H or S
-                if line[ -1 ] == 'H' or line[ -1 ] == 'S':
-                    line = line[:-1]
+                line = line[1:] # Trim label
 
-                matrix[i] = [int(entry) for entry in line if entry != ' ']
-                i += 1
+                self.matrix.append([int(entry) for entry in line])
 
-        shuffle(matrix)
-        return matrix
+        shuffle(self.matrix)
 
 def save_object(obj, filename):
     if args.output: # save to file
@@ -84,9 +74,9 @@ if args.train: # Training Data
     emails = EmailSet(args.input, True)
     size = int(len(emails.matrix) * args.train)
     save_object([
-        emails.matrix[:size],  # training emails
-        emails.labels[:size],  # training labels
-        emails.matrix[size:],  # testing emails
+        emails.matrix[:size], # training emails
+        emails.labels[:size], # training labels
+        emails.matrix[size:], # testing emails
         emails.labels[size:]  # testing labels
     ], args.output)
 else:
