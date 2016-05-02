@@ -48,20 +48,20 @@ class EmailSet(object):
     def read_matrix(self,matrix_dir,labeled):
 
         with open(matrix_dir,"r") as matrix_file:
+            tmp = []
             for line in matrix_file:
-                line = line.strip().split(' ')
+                tmp.append(line.strip().split(' '))
+            shuffle(tmp)
 
-                if labeled:
-                    if line[1] == 1: # HAM
-                        self.labels.append([0, 1])
-                    elif line[1] == 0: # SPAM
-                        self.labels.append([1, 0])
+        for line in tmp:
+            if labeled:
+                if line[0] == '1':   # HAM
+                    self.labels.append([0, 1])
+                elif line[0] == '0': # SPAM
+                    self.labels.append([1, 0])
+            line = line[1:] # Trim label
+            self.matrix.append([int(entry) for entry in line])
 
-                line = line[1:] # Trim label
-
-                self.matrix.append([int(entry) for entry in line])
-
-        shuffle(self.matrix)
 
 def save_object(obj, filename):
     if args.output: # save to file
